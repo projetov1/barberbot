@@ -260,12 +260,7 @@ const [newLeadAlert, setNewLeadAlert] = useState(false);
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 8, height: 8, background: '#34d399', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 6px #34d399' }} />
             <span style={{ color: '#34d399', fontSize: 13, fontWeight: 600}}>Bot Ativo</span>
-            <div style={{ position: 'fixed', top: 20, right: 20, background: '#0ea5e9', color: '#fff', padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: 14, zIndex: 999, boxShadow: '0 4px 20px #0ea5e955' }}>
-              🔔 Novo lead chegou!
-            </div>
-          )}
-          </div>
-          <div style={{ color: '#444', fontSize: 11, marginTop: 4 }}>{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div style={{ color: '#444', fontSize: 11, marginTop: 4 }}>{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         <nav style={{ flex: 1, padding: '16px 12px' }}>
           {tabs.map(t => (
