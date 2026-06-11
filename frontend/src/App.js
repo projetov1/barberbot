@@ -233,6 +233,8 @@ export default function App() {
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [time, setTime] = useState(new Date());
+const [prevLeads, setPrevLeads] = useState(null);
+const [newLeadAlert, setNewLeadAlert] = useState(false);
   useEffect(() => {
     getDashboardStats().then(setStats).catch(console.error);
     const interval = setInterval(() => { getDashboardStats().then(setStats).catch(console.error); setTime(new Date()); }, 30000);
@@ -250,20 +252,25 @@ export default function App() {
       {/* SIDEBAR */}
       <div style={{ width: 240, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 20 }}>
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #ffffff0d' }}>
-          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160, mixBlendMode: 'screen'
-            
+          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 200, mixBlendMode: 'screen'
+
            }} />
         </div>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 8, height: 8, background: '#34d399', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 6px #34d399' }} />
             <span style={{ color: '#34d399', fontSize: 13, fontWeight: 600 }}>Bot Ativo</span>
+          {newLeadAlert && (
+            <div style={{ position: 'fixed', top: 20, right: 20, background: '#0ea5e9', color: '#fff', padding: '12px 20px', borderRadius: 12, fontWeight: 600, fontSize: 14, zIndex: 999, boxShadow: '0 4px 20px #0ea5e955' }}>
+              🔔 Novo lead chegou!
+            </div>
+          )}
           </div>
           <div style={{ color: '#444', fontSize: 11, marginTop: 4 }}>{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         <nav style={{ flex: 1, padding: '16px 12px' }}>
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: tab === t.id ? '#0ea5e915' : 'none', color: tab === t.id ? '#0ea5e9' : '#666', border: 'none', borderLeft: tab === t.id ? '3px solid #0ea5e9' : '3px solid transparent', borderRadius: '0 8px 8px 0', padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: tab === t.id ? 600 : 400, transition: 'all 0.15s', textAlign: 'left', marginBottom: 4 }}>
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: tab === t.id ? '#0ea5e915' : 'none', color: tab === t.id ? '#0ea5e9' : '#444',, border: 'none', borderLeft: tab === t.id ? '3px solid #0ea5e9' : '3px solid transparent', borderRadius: '0 8px 8px 0', padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: tab === t.id ? 600 : 400, transition: 'all 0.15s', textAlign: 'left', marginBottom: 4 }}>
               {t.icon}{t.label}
             </button>
           ))}
