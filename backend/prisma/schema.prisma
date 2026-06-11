@@ -1,5 +1,3 @@
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,15 +8,15 @@ datasource db {
 }
 
 model Lead {
-  id          String   @id @default(uuid())
-  phone       String   @unique
-  name        String?
-  isClient    Boolean  @default(false)
-  temperature String   @default("frio") // frio, morno, quente
-  stage       String   @default("inicio") // inicio, triagem, agendamento, atendimento_humano, fechado
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id            String         @id @default(uuid())
+  phone         String         @unique
+  name          String?
+  isClient      Boolean        @default(false)
+  temperature   String         @default("frio")
+  stage         String         @default("inicio")
+  reviewSent    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   conversations Conversation[]
   appointments  Appointment[]
 }
@@ -27,9 +25,9 @@ model Conversation {
   id        String   @id @default(uuid())
   leadId    String
   lead      Lead     @relation(fields: [leadId], references: [id])
-  direction String   // incoming, outgoing
+  direction String
   message   String
-  type      String   @default("text") // text, image, audio
+  type      String   @default("text")
   createdAt DateTime @default(now())
 }
 
@@ -40,7 +38,7 @@ model Appointment {
   service   String
   date      String?
   time      String?
-  status    String   @default("pendente") // pendente, confirmado, cancelado, concluido
+  status    String   @default("pendente")
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -58,7 +56,7 @@ model Service {
   id          String  @id @default(uuid())
   name        String
   price       Float
-  duration    Int     // em minutos
+  duration    Int
   description String?
   active      Boolean @default(true)
 }
