@@ -8,7 +8,7 @@ async function sendText(phone, message) {
     const response = await axios.post(
       `https://api.z-api.io/instances/${INSTANCE_ID}/token/${TOKEN}/send-text`,
       { phone, message },
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { 'Content-Type': 'application/json', 'Client-Token': TOKEN } }
     );
     return response.data;
   } catch (error) {
