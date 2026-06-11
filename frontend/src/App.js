@@ -11,6 +11,7 @@ const Icons = {
   leads: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
   appointments: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
   services: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>),
+  conversations: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>),
 };
 
 function Badge({ text, color }) {
@@ -245,7 +246,7 @@ function Conversations() {
       const res = await fetch(`${process.env.REACT_APP_API_URL}/api/leads/${lead.id}/conversations`);
       const data = await res.json();
       setMessages(data || []);
-    } catch { setMessages([]); }
+    } catch (e) { setMessages([]); }
   }
 
   return (
@@ -260,30 +261,41 @@ function Conversations() {
           </div>
         ))}
       </div>
-      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, width: '100%', overflowY: 'auto' }}>
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid #ffffff0d', color: '#888', fontSize: 13 }}>Mensagens</div>
-        {messages.length > 0 ? (
-          <div style={{ padding: 20 }}>
-            {messages.map((message, index) => (
-              <div key={index} style={{ marginBottom: 10 }}>
-                <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{message.sender}</div>
-                <div style={{ color: '#555', fontSize: 12 }}>{message.text}</div>
-              </div>
-            ))}
-          </div>
+      <div style={{ flex: 1, background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, display: 'flex', flexDirection: 'column' }}>
+        {!selectedLead ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444' }}>Selecione um lead para ver as mensagens</div>
         ) : (
-          <div style={{ padding: 20, color: '#555' }}>Nenhuma mensagem para este lead.</div>
+          <>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
+              <div style={{ color: '#fff', fontWeight: 600 }}>{selectedLead.name || 'Sem nome'}</div>
+              <div style={{ color: '#555', fontSize: 12 }}>{selectedLead.phone}</div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {messages.length === 0 ? <div style={{ color: '#444', textAlign: 'center', marginTop: 40 }}>Nenhuma mensagem encontrada</div>
+              : messages.map(m => (
+                <div key={m.id} style={{ display: 'flex', justifyContent: m.direction === 'outgoing' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ background: m.direction === 'outgoing' ? '#0ea5e9' : '#1e1e3a', color: '#fff', padding: '10px 14px', borderRadius: 12, maxWidth: '70%', fontSize: 14, lineHeight: 1.5 }}>
+                    {m.message}
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                      {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-const [tab, setTab] = useState('overview');
-const [stats, setStats] = useState(null);
-const [time, setTime] = useState(new Date());
-useEffect(() => {
-  getDashboardStats().then(setStats).catch(console.error);
+export default function App() {
+  const [tab, setTab] = useState('overview');
+  const [stats, setStats] = useState(null);
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    getDashboardStats().then(setStats).catch(console.error);
     const interval = setInterval(() => { getDashboardStats().then(setStats).catch(console.error); setTime(new Date()); }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -292,15 +304,14 @@ useEffect(() => {
     { id: 'leads', label: 'Leads', icon: Icons.leads },
     { id: 'appointments', label: 'Agendamentos', icon: Icons.appointments },
     { id: 'services', label: 'Serviços', icon: Icons.services },
-    { id: 'conversations', label: 'Conversas', icon: Icons.leads },
+    { id: 'conversations', label: 'Conversas', icon: Icons.conversations },
   ];
   const tabTitles = { overview: 'Visão Geral', leads: 'Leads', appointments: 'Agendamentos', services: 'Serviços', conversations: 'Conversas' };
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* SIDEBAR */}
       <div style={{ width: 240, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 20 }}>
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #ffffff0d' }}>
-          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160, width: '100%' }} />
+          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160 }} />
         </div>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -318,7 +329,6 @@ useEffect(() => {
         </nav>
         <div style={{ padding: '16px 20px', borderTop: '1px solid #ffffff0d', color: '#333', fontSize: 11 }}>BarberBot v1.0 · Projetov1</div>
       </div>
-      {/* CONTEÚDO */}
       <div style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ background: '#0f0f23', borderBottom: '1px solid #ffffff0d', padding: '0 32px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>{tabTitles[tab]}</div>
@@ -329,7 +339,7 @@ useEffect(() => {
           {tab === 'leads' && <Leads />}
           {tab === 'appointments' && <Appointments />}
           {tab === 'services' && <Services />}
-        {tab === 'conversations' && <Conversations />}
+          {tab === 'conversations' && <Conversations />}
         </div>
       </div>
     </div>
