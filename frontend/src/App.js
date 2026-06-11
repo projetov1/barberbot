@@ -250,7 +250,9 @@ export default function App() {
       {/* SIDEBAR */}
       <div style={{ width: 240, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 20 }}>
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #ffffff0d' }}>
-          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160, filter: 'brightness(0) invert(1)' }} />
+          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160, mixBlendMode: 'screen'
+            
+           }} />
         </div>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
