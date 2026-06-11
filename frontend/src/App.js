@@ -229,12 +229,61 @@ function Services() {
   );
 }
 
-export default function App() {
-  const [tab, setTab] = useState('overview');
-  const [stats, setStats] = useState(null);
-  const [time, setTime] = useState(new Date());
+function Conversations() {
+  const [leads, setLeads] = useState([]);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    getDashboardStats().then(setStats).catch(console.error);
+    getLeads({}).then(d => { setLeads(d.leads || []); setLoading(false); });
+  }, []);
+
+  async function loadMessages(lead) {
+    setSelectedLead(lead);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/leads/${lead.id}/conversations`);
+      const data = await res.json();
+      setMessages(data || []);
+    } catch { setMessages([]); }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 20, height: '75vh' }}>
+      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, width: 280, overflowY: 'auto' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #ffffff0d', color: '#888', fontSize: 13 }}>Selecione um lead</div>
+        {loading ? <div style={{ padding: 20, color: '#555' }}>Carregando...</div>
+        : leads.map(lead => (
+          <div key={lead.id} onClick={() => loadMessages(lead)} style={{ padding: '14px 18px', borderBottom: '1px solid #ffffff05', cursor: 'pointer', background: selectedLead?.id === lead.id ? '#0ea5e915' : 'none', borderLeft: selectedLead?.id === lead.id ? '3px solid #0ea5e9' : '3px solid transparent' }}>
+            <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{lead.name || 'Sem nome'}</div>
+            <div style={{ color: '#555', fontSize: 12 }}>{lead.phone}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, width: '100%', overflowY: 'auto' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #ffffff0d', color: '#888', fontSize: 13 }}>Mensagens</div>
+        {messages.length > 0 ? (
+          <div style={{ padding: 20 }}>
+            {messages.map((message, index) => (
+              <div key={index} style={{ marginBottom: 10 }}>
+                <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{message.sender}</div>
+                <div style={{ color: '#555', fontSize: 12 }}>{message.text}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: 20, color: '#555' }}>Nenhuma mensagem para este lead.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const [tab, setTab] = useState('overview');
+const [stats, setStats] = useState(null);
+const [time, setTime] = useState(new Date());
+useEffect(() => {
+  getDashboardStats().then(setStats).catch(console.error);
     const interval = setInterval(() => { getDashboardStats().then(setStats).catch(console.error); setTime(new Date()); }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -243,8 +292,9 @@ export default function App() {
     { id: 'leads', label: 'Leads', icon: Icons.leads },
     { id: 'appointments', label: 'Agendamentos', icon: Icons.appointments },
     { id: 'services', label: 'Serviços', icon: Icons.services },
+    { id: 'conversations', label: 'Conversas', icon: Icons.leads },
   ];
-  const tabTitles = { overview: 'Visão Geral', leads: 'Leads', appointments: 'Agendamentos', services: 'Serviços' };
+  const tabTitles = { overview: 'Visão Geral', leads: 'Leads', appointments: 'Agendamentos', services: 'Serviços', conversations: 'Conversas' };
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* SIDEBAR */}
@@ -279,6 +329,7 @@ export default function App() {
           {tab === 'leads' && <Leads />}
           {tab === 'appointments' && <Appointments />}
           {tab === 'services' && <Services />}
+        {tab === 'conversations' && <Conversations />}
         </div>
       </div>
     </div>
