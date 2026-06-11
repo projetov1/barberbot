@@ -243,9 +243,9 @@ function Conversations() {
   async function loadMessages(lead) {
     setSelectedLead(lead);
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/leads/${lead.id}/conversations`);
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/leads/${lead.id}`);
       const data = await res.json();
-      setMessages(data || []);
+      setMessages(data.conversations || []);
     } catch (e) { setMessages([]); }
   }
 
