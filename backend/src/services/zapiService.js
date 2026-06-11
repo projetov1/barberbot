@@ -12,7 +12,7 @@ async function sendText(phone, message) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Client-Token': SECURITY_TOKEN
+          'Client-Token': `${SECURITY_TOKEN}`
         }
       }
     );
