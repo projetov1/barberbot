@@ -1,0 +1,64 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  name        String?
+  isClient    Boolean  @default(false)
+  temperature String   @default("frio") // frio, morno, quente
+  stage       String   @default("inicio") // inicio, triagem, agendamento, atendimento_humano, fechado
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  conversations Conversation[]
+  appointments  Appointment[]
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  direction String   // incoming, outgoing
+  message   String
+  type      String   @default("text") // text, image, audio
+  createdAt DateTime @default(now())
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  service   String
+  date      String?
+  time      String?
+  status    String   @default("pendente") // pendente, confirmado, cancelado, concluido
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BotSession {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  step      String   @default("inicio")
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String  @id @default(uuid())
+  name        String
+  price       Float
+  duration    Int     // em minutos
+  description String?
+  active      Boolean @default(true)
+}
