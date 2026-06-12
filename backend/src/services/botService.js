@@ -6,6 +6,15 @@ const BARBER_NAME = process.env.BARBER_NAME || 'Barbearia';
 const HUMAN_PHONE = process.env.HUMAN_ATTENDANT_PHONE;
 const CASHBARBER_LINK = 'https://cashbarber.com.br/johnbarbermarketplace';
 
+// Palavras-chave que indicam lead vindo de anúncio (preencha o texto no link do anúncio)
+const TRAFFIC_KEYWORDS = ['vim pelo anuncio', 'vim pelo anúncio', 'quero saber mais', 'vi no anuncio', 'vi no anúncio', 'anuncio', 'anúncio', 'trafego', 'tráfego'];
+
+function detectSource(text) {
+  const t = (text || '').toLowerCase();
+  if (TRAFFIC_KEYWORDS.some(k => t.includes(k))) return 'trafego_pago';
+  return 'organico';
+}
+
 function calcTemperature(stage) {
   const map = {
     inicio: 'frio',
@@ -56,7 +65,14 @@ async function saveMessage(leadId, direction, message) {
 async function processMessage(phone, messageText) {
   const text = (messageText || '').trim().toLowerCase();
   const session = await getOrCreateSession(phone);
+  const isNewLead = !session || session.step === 'inicio';
   const lead = await getOrCreateLead(phone);
+
+  // Detecta fonte do lead na primeira mensagem
+  if (isNewLead && !lead.source) {
+    const source = detectSource(messageText);
+    await prisma.lead.update({ where: { phone }, data: { source } });
+  }
 
   await saveMessage(lead.id, 'incoming', messageText);
 
@@ -90,7 +106,11 @@ async function stepInicio(phone, lead, session) {
     return stepShowMenu(phone);
   }
   await updateSession(phone, 'aguarda_nome');
-  await sendText(phone, `Olá! 👋 Seja bem-vindo à *${BARBER_NAME}*!\n\nSou o assistente virtual. Estou aqui pra te ajudar com informações, preços e agendamentos.\n\nPrimeiro, como posso te chamar?`);
+  const isFromAd = lead.source === 'trafego_pago';
+  const greeting = isFromAd
+    ? `Olá! 👋 Vi que você veio pelo nosso anúncio — que ótimo ter você aqui!\n\n✂️ Somos a *${BARBER_NAME}*, referência em cortes e cuidados masculinos em Recife.\n\nSou o assistente virtual e vou te ajudar com tudo que precisar: preços, serviços e agendamentos.\n\nPrimeiro, como posso te chamar?`
+    : `Olá! 👋 Seja bem-vindo à *${BARBER_NAME}*!\n\nSou o assistente virtual. Estou aqui pra te ajudar com informações, preços e agendamentos.\n\nPrimeiro, como posso te chamar?`;
+  await sendText(phone, greeting);
 }
 
 async function stepSalvaNome(phone, lead, name) {

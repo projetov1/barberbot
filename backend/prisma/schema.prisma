@@ -15,6 +15,7 @@ model Lead {
   temperature   String         @default("frio")
   stage         String         @default("inicio")
   reviewSent    Boolean        @default(false)
+  source        String?        // ex: trafego_pago, organico, indicacao
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   conversations Conversation[]

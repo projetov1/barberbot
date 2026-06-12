@@ -255,6 +255,9 @@ function formatDateSep(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const SOURCE_LABEL = { trafego_pago: '📢 Tráfego Pago', organico: '🔗 Orgânico', indicacao: '🤝 Indicação' };
+const SOURCE_COLOR = { trafego_pago: '#f59e0b', organico: '#34d399', indicacao: '#8b5cf6' };
+
 function Conversations() {
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -265,23 +268,48 @@ function Conversations() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const selectedLeadRef = useRef(null);
+  const isAtBottomRef = useRef(true);
 
   useEffect(() => {
     getLeads({ limit: 100 }).then(d => { setLeads(d.leads || []); setLoading(false); });
   }, []);
 
+  // Auto-refresh das mensagens a cada 8s quando há lead selecionado
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!selectedLead) return;
+    const interval = setInterval(() => {
+      fetchMessages(selectedLead.id, false);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [selectedLead]);
+
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
+
+  async function fetchMessages(leadId, resetScroll = true) {
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/leads/${leadId}`);
+      const data = await res.json();
+      setMessages(prev => {
+        const newMsgs = data.conversations || [];
+        if (resetScroll) { isAtBottomRef.current = true; return newMsgs; }
+        // Só atualiza se chegou mensagem nova
+        if (newMsgs.length !== prev.length) { isAtBottomRef.current = true; return newMsgs; }
+        return prev;
+      });
+    } catch (e) {}
+  }
 
   async function loadMessages(lead) {
     setSelectedLead(lead);
+    selectedLeadRef.current = lead;
     setMessages([]);
-    try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/leads/${lead.id}`);
-      const data = await res.json();
-      setMessages(data.conversations || []);
-    } catch (e) { setMessages([]); }
+    isAtBottomRef.current = true;
+    await fetchMessages(lead.id, true);
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
@@ -354,7 +382,14 @@ function Conversations() {
                       {lead.updatedAt ? new Date(lead.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                     </span>
                   </div>
-                  <div style={{ color: '#555', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{lead.phone}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <span style={{ color: '#555', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.phone}</span>
+                    {lead.source && (
+                      <span style={{ fontSize: 10, color: SOURCE_COLOR[lead.source] || '#888', background: (SOURCE_COLOR[lead.source] || '#888') + '18', padding: '1px 6px', borderRadius: 6, flexShrink: 0, fontWeight: 600 }}>
+                        {SOURCE_LABEL[lead.source] || lead.source}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -379,6 +414,11 @@ function Conversations() {
                 <div style={{ color: '#555', fontSize: 12 }}>{selectedLead.phone}</div>
               </div>
               <Badge text={selectedLead.stage || 'inicio'} color="#0ea5e9" />
+              {selectedLead.source && (
+                <span style={{ fontSize: 11, color: SOURCE_COLOR[selectedLead.source] || '#888', background: (SOURCE_COLOR[selectedLead.source] || '#888') + '18', padding: '3px 10px', borderRadius: 8, fontWeight: 600, border: `1px solid ${(SOURCE_COLOR[selectedLead.source] || '#888')}33` }}>
+                  {SOURCE_LABEL[selectedLead.source] || selectedLead.source}
+                </span>
+              )}
             </div>
 
             {/* Área de mensagens */}
