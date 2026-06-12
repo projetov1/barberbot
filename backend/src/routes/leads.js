@@ -71,6 +71,27 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Reseta sessão do bot para um lead (usado quando atendimento humano termina)
+router.post('/:id/reset-bot', async (req, res) => {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } });
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    await prisma.botSession.update({
+      where: { phone: lead.phone },
+      data: { step: 'menu_principal', updatedAt: new Date() },
+    });
+    await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { stage: 'menu_principal' },
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao resetar bot' });
+  }
+});
+
 // Atendente responde manualmente pelo dashboard
 router.post('/:id/reply', async (req, res) => {
   try {

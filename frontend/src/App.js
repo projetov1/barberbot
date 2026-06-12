@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getDashboardStats, getLeads, getLead, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead } from './services/api';
+import { getDashboardStats, getLeads, getLead, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead, resetBot } from './services/api';
 
 // Tema: preto / branco / amarelo
 const T = {
@@ -298,6 +298,7 @@ function Conversations() {
   const [search, setSearch] = useState('');
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const selectedLeadRef = useRef(null);
@@ -361,6 +362,19 @@ function Conversations() {
 
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  }
+
+  async function handleResetBot() {
+    if (!selectedLead || resetting) return;
+    setResetting(true);
+    try {
+      await resetBot(selectedLead.id);
+      setSelectedLead(prev => ({ ...prev, stage: 'menu_principal' }));
+    } catch (e) {
+      alert('Erro ao liberar bot');
+    } finally {
+      setResetting(false);
+    }
   }
 
   const filteredLeads = leads.filter(l =>
@@ -443,7 +457,12 @@ function Conversations() {
                 <div style={{ color: T.text, fontWeight: 600, fontSize: 15 }}>{selectedLead.name || 'Sem nome'}</div>
                 <div style={{ color: T.muted, fontSize: 12 }}>{selectedLead.phone}</div>
               </div>
-              <Badge text={selectedLead.stage || 'inicio'} color={T.yellow} />
+              <Badge text={selectedLead.stage || 'inicio'} color={selectedLead.stage === 'atendimento_humano' ? '#f87171' : T.yellow} />
+              {selectedLead.stage === 'atendimento_humano' && (
+                <button onClick={handleResetBot} disabled={resetting} style={{ background: '#34d39918', color: '#34d399', border: '1px solid #34d39933', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {resetting ? 'Liberando...' : '✓ Liberar Bot'}
+                </button>
+              )}
               {selectedLead.source && (
                 <span style={{ fontSize: 11, color: SOURCE_COLOR[selectedLead.source] || '#888', background: (SOURCE_COLOR[selectedLead.source] || '#888') + '18', padding: '3px 10px', borderRadius: 8, fontWeight: 600, border: `1px solid ${(SOURCE_COLOR[selectedLead.source] || '#888')}33` }}>
                   {SOURCE_LABEL[selectedLead.source] || selectedLead.source}

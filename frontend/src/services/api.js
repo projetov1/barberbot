@@ -15,3 +15,4 @@ export const createService = (data) => api.post('/api/services', data).then(r =>
 export const updateService = (id, data) => api.put(`/api/services/${id}`, data).then(r => r.data);
 export const deleteService = (id) => api.delete(`/api/services/${id}`).then(r => r.data);
 export const replyLead = (id, message) => api.post(`/api/leads/${id}/reply`, { message }).then(r => r.data);
+export const resetBot = (id) => api.post(`/api/leads/${id}/reset-bot`).then(r => r.data);

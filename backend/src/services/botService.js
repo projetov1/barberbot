@@ -107,8 +107,17 @@ async function processMessage(phone, messageText, meta = {}) {
       return stepSalvaData(phone, lead, messageText, session);
     case 'aguarda_hora':
       return stepSalvaHora(phone, lead, messageText, session);
-    case 'atendimento_humano':
+    case 'atendimento_humano': {
+      // Se passou mais de 2h sem resposta humana, reseta automaticamente
+      const idleMs = Date.now() - new Date(session.updatedAt).getTime();
+      if (idleMs > 2 * 60 * 60 * 1000) {
+        console.log(`[BOT] Atendimento humano expirado (${Math.round(idleMs/60000)}min) — resetando para inicio`);
+        await updateSession(phone, 'inicio');
+        return stepInicio(phone, lead, { ...session, step: 'inicio' });
+      }
+      await sendText(phone, `Olá! 😊 Seu atendimento com nosso time está em andamento.\n\nAssim que possível um de nossos atendentes vai te responder aqui. Aguarde!`);
       return;
+    }
     default:
       return stepInicio(phone, lead, session);
   }
