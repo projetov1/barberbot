@@ -2,9 +2,23 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { getDashboardStats, getLeads, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead } from './services/api';
 
-const TEMP_COLOR = { frio: '#60a5fa', morno: '#fbbf24', quente: '#f87171' };
+// Tema: preto / branco / amarelo
+const T = {
+  bg:       '#000000',   // fundo principal
+  sidebar:  '#0d0d0d',   // sidebar e cards escuros
+  card:     '#111111',   // cards e painéis
+  border:   '#1f1f1f',   // bordas sutis
+  border2:  '#2a2a2a',   // bordas levemente mais visíveis
+  yellow:   '#f5c518',   // amarelo destaque
+  yellowDim:'#f5c51820', // amarelo transparente
+  text:     '#ffffff',
+  muted:    '#888888',
+  muted2:   '#444444',
+};
+
+const TEMP_COLOR = { frio: '#60a5fa', morno: '#f5c518', quente: '#f87171' };
 const TEMP_LABEL = { frio: 'Frio', morno: 'Morno', quente: 'Quente' };
-const STATUS_COLOR = { pendente: '#fbbf24', confirmado: '#34d399', cancelado: '#f87171', concluido: '#818cf8' };
+const STATUS_COLOR = { pendente: '#f5c518', confirmado: '#34d399', cancelado: '#f87171', concluido: '#a78bfa' };
 
 const Icons = {
   overview: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>),
@@ -20,10 +34,10 @@ function Badge({ text, color }) {
 
 function MetricCard({ label, value, color, icon }) {
   return (
-    <div style={{ background: color, borderRadius: 16, padding: '24px 28px', flex: 1, minWidth: 150, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ opacity: 0.15, position: 'absolute', right: 16, top: 16, transform: 'scale(2.5)', transformOrigin: 'top right' }}>{icon}</div>
-      <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 12 }}>{label}</div>
-      <div style={{ color: '#fff', fontSize: 38, fontWeight: 700, lineHeight: 1 }}>{value ?? '—'}</div>
+    <div style={{ background: T.card, border: `1px solid ${color}33`, borderRadius: 16, padding: '24px 28px', flex: 1, minWidth: 150, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ opacity: 0.12, position: 'absolute', right: 16, top: 16, transform: 'scale(2.5)', transformOrigin: 'top right', color }}>{icon}</div>
+      <div style={{ color: T.muted, fontSize: 13, marginBottom: 12 }}>{label}</div>
+      <div style={{ color, fontSize: 38, fontWeight: 700, lineHeight: 1 }}>{value ?? '—'}</div>
     </div>
   );
 }
@@ -43,32 +57,32 @@ function Overview({ stats }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        <MetricCard icon={Icons.leads} label="Total de Leads" value={stats.totals.totalLeads} color="#0ea5e9" />
-        <MetricCard icon={Icons.leads} label="Novos Contatos" value={stats.totals.newClients} color="#8b5cf6" />
-        <MetricCard icon={Icons.leads} label="Recorrentes" value={stats.totals.returning} color="#06b6d4" />
-        <MetricCard icon={Icons.appointments} label="Agend. Pendentes" value={stats.appointments.pending} color="#f59e0b" />
-        <MetricCard icon={Icons.overview} label="Mensagens Hoje" value={stats.activity.todayMessages} color="#ec4899" />
+        <MetricCard icon={Icons.leads} label="Total de Leads" value={stats.totals.totalLeads} color={T.yellow} />
+        <MetricCard icon={Icons.leads} label="Novos Contatos" value={stats.totals.newClients} color="#a78bfa" />
+        <MetricCard icon={Icons.leads} label="Recorrentes" value={stats.totals.returning} color="#34d399" />
+        <MetricCard icon={Icons.appointments} label="Agend. Pendentes" value={stats.appointments.pending} color="#f87171" />
+        <MetricCard icon={Icons.overview} label="Mensagens Hoje" value={stats.activity.todayMessages} color="#60a5fa" />
       </div>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, padding: 24, flex: 2, minWidth: 280 }}>
-          <div style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>Leads por dia (7 dias)</div>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, flex: 2, minWidth: 280 }}>
+          <div style={{ color: T.muted, fontSize: 13, marginBottom: 20 }}>Leads por dia (7 dias)</div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
-              <XAxis dataKey="date" stroke="#333" tick={{ fill: '#666', fontSize: 12 }} />
-              <YAxis stroke="#333" tick={{ fill: '#666', fontSize: 12 }} />
-              <Tooltip contentStyle={{ background: '#0a0a1a', border: '1px solid #ffffff11', borderRadius: 8, color: '#fff' }} />
-              <Line type="monotone" dataKey="leads" stroke="#0ea5e9" strokeWidth={2} dot={{ fill: '#0ea5e9', r: 4 }} />
+              <XAxis dataKey="date" stroke={T.border2} tick={{ fill: T.muted2, fontSize: 12 }} />
+              <YAxis stroke={T.border2} tick={{ fill: T.muted2, fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: T.sidebar, border: `1px solid ${T.border2}`, borderRadius: 8, color: '#fff' }} />
+              <Line type="monotone" dataKey="leads" stroke={T.yellow} strokeWidth={2} dot={{ fill: T.yellow, r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, padding: 24, flex: 1, minWidth: 200 }}>
-          <div style={{ color: '#888', fontSize: 13, marginBottom: 8 }}>Temperatura dos Leads</div>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, flex: 1, minWidth: 200 }}>
+          <div style={{ color: T.muted, fontSize: 13, marginBottom: 8 }}>Temperatura dos Leads</div>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} dataKey="value">
                 {pieData.map((_, i) => <Cell key={i} fill={pieColors[i]} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: '#0a0a1a', border: '1px solid #ffffff11', borderRadius: 8, color: '#fff' }} />
+              <Tooltip contentStyle={{ background: T.sidebar, border: `1px solid ${T.border2}`, borderRadius: 8, color: '#fff' }} />
             </PieChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
@@ -82,16 +96,16 @@ function Overview({ stats }) {
           </div>
         </div>
       </div>
-      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, padding: 24 }}>
-        <div style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>Leads Recentes</div>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24 }}>
+        <div style={{ color: T.muted, fontSize: 13, marginBottom: 16 }}>Leads Recentes</div>
         {stats.recentLeads.map(lead => (
-          <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: '1px solid #ffffff06' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#0ea5e920', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9', fontSize: 15, fontWeight: 700 }}>
+          <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: T.yellowDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.yellow, fontSize: 15, fontWeight: 700 }}>
               {(lead.name || lead.phone)[0].toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{lead.name || 'Sem nome'}</div>
-              <div style={{ color: '#555', fontSize: 12 }}>{lead.phone}</div>
+              <div style={{ color: T.text, fontSize: 14, fontWeight: 500 }}>{lead.name || 'Sem nome'}</div>
+              <div style={{ color: T.muted2, fontSize: 12 }}>{lead.phone}</div>
             </div>
             <Badge text={TEMP_LABEL[lead.temperature]} color={TEMP_COLOR[lead.temperature]} />
           </div>
@@ -113,31 +127,31 @@ function Leads() {
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['', 'frio', 'morno', 'quente'].map(t => (
-          <button key={t} onClick={() => setFilter(t)} style={{ background: filter === t ? '#0ea5e9' : '#131320', color: filter === t ? '#fff' : '#666', border: `1px solid ${filter === t ? '#0ea5e9' : '#ffffff11'}`, borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          <button key={t} onClick={() => setFilter(t)} style={{ background: filter === t ? T.yellow : T.card, color: filter === t ? '#000' : T.muted, border: `1px solid ${filter === t ? T.yellow : T.border}`, borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             {t === '' ? 'Todos' : TEMP_LABEL[t]}
           </button>
         ))}
       </div>
-      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid #ffffff0d' }}>
+            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
               {['Nome', 'Telefone', 'Temperatura', 'Etapa', 'Tipo', 'Desde'].map(h => (
-                <th key={h} style={{ color: '#555', fontSize: 11, fontWeight: 600, padding: '14px 18px', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                <th key={h} style={{ color: T.muted2, fontSize: 11, fontWeight: 600, padding: '14px 18px', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={6} style={{ padding: 40, color: '#555', textAlign: 'center' }}>Carregando...</td></tr>
-            : leads.length === 0 ? <tr><td colSpan={6} style={{ padding: 40, color: '#555', textAlign: 'center' }}>Nenhum lead encontrado</td></tr>
+            {loading ? <tr><td colSpan={6} style={{ padding: 40, color: T.muted, textAlign: 'center' }}>Carregando...</td></tr>
+            : leads.length === 0 ? <tr><td colSpan={6} style={{ padding: 40, color: T.muted, textAlign: 'center' }}>Nenhum lead encontrado</td></tr>
             : leads.map(lead => (
-              <tr key={lead.id} style={{ borderBottom: '1px solid #ffffff05' }}>
-                <td style={{ padding: '13px 18px', color: '#fff', fontSize: 14 }}>{lead.name || '—'}</td>
-                <td style={{ padding: '13px 18px', color: '#666', fontSize: 13 }}>{lead.phone}</td>
+              <tr key={lead.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                <td style={{ padding: '13px 18px', color: T.text, fontSize: 14 }}>{lead.name || '—'}</td>
+                <td style={{ padding: '13px 18px', color: T.muted, fontSize: 13 }}>{lead.phone}</td>
                 <td style={{ padding: '13px 18px' }}><Badge text={TEMP_LABEL[lead.temperature]} color={TEMP_COLOR[lead.temperature]} /></td>
-                <td style={{ padding: '13px 18px', color: '#666', fontSize: 13 }}>{lead.stage}</td>
-                <td style={{ padding: '13px 18px' }}><Badge text={lead.isClient ? 'Cliente' : 'Novo'} color={lead.isClient ? '#34d399' : '#818cf8'} /></td>
-                <td style={{ padding: '13px 18px', color: '#555', fontSize: 12 }}>{new Date(lead.createdAt).toLocaleDateString('pt-BR')}</td>
+                <td style={{ padding: '13px 18px', color: T.muted, fontSize: 13 }}>{lead.stage}</td>
+                <td style={{ padding: '13px 18px' }}><Badge text={lead.isClient ? 'Cliente' : 'Novo'} color={lead.isClient ? '#34d399' : '#a78bfa'} /></td>
+                <td style={{ padding: '13px 18px', color: T.muted2, fontSize: 12 }}>{new Date(lead.createdAt).toLocaleDateString('pt-BR')}</td>
               </tr>
             ))}
           </tbody>
@@ -157,25 +171,25 @@ function Appointments() {
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['pendente', 'confirmado', 'concluido', 'cancelado'].map(s => (
-          <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? STATUS_COLOR[s] : '#131320', color: filter === s ? '#000' : '#666', border: `1px solid ${filter === s ? STATUS_COLOR[s] : '#ffffff11'}`, borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{s}</button>
+          <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? STATUS_COLOR[s] : T.card, color: filter === s ? '#000' : T.muted, border: `1px solid ${filter === s ? STATUS_COLOR[s] : T.border}`, borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{s}</button>
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {appointments.length === 0 ? <div style={{ color: '#555', textAlign: 'center', padding: 40 }}>Nenhum agendamento</div>
+        {appointments.length === 0 ? <div style={{ color: T.muted, textAlign: 'center', padding: 40 }}>Nenhum agendamento</div>
         : appointments.map(a => (
-          <div key={a.id} style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={a.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}>{a.lead?.name || a.lead?.phone}</div>
-              <div style={{ color: '#666', fontSize: 13 }}>{a.service} · {a.date} · {a.time}</div>
+              <div style={{ color: T.text, fontWeight: 600, marginBottom: 4 }}>{a.lead?.name || a.lead?.phone}</div>
+              <div style={{ color: T.muted, fontSize: 13 }}>{a.service} · {a.date} · {a.time}</div>
             </div>
             <Badge text={a.status} color={STATUS_COLOR[a.status]} />
             {a.status === 'pendente' && (
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleStatus(a.id, 'confirmado')} style={{ background: '#34d39915', color: '#34d399', border: '1px solid #34d39933', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Confirmar</button>
-                <button onClick={() => handleStatus(a.id, 'cancelado')} style={{ background: '#f8717115', color: '#f87171', border: '1px solid #f8717133', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+                <button onClick={() => handleStatus(a.id, 'confirmado')} style={{ background: '#34d39918', color: '#34d399', border: '1px solid #34d39933', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Confirmar</button>
+                <button onClick={() => handleStatus(a.id, 'cancelado')} style={{ background: '#f8717118', color: '#f87171', border: '1px solid #f8717133', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
               </div>
             )}
-            {a.status === 'confirmado' && <button onClick={() => handleStatus(a.id, 'concluido')} style={{ background: '#818cf815', color: '#818cf8', border: '1px solid #818cf833', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Concluir</button>}
+            {a.status === 'confirmado' && <button onClick={() => handleStatus(a.id, 'concluido')} style={{ background: '#a78bfa18', color: '#a78bfa', border: '1px solid #a78bfa33', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Concluir</button>}
           </div>
         ))}
       </div>
@@ -197,32 +211,32 @@ function Services() {
     load();
   }
   async function handleDelete(id) { await deleteService(id); load(); }
-  const inputStyle = { background: '#0a0a1a', border: '1px solid #ffffff15', borderRadius: 8, color: '#fff', padding: '9px 13px', fontSize: 14, outline: 'none' };
+  const inputStyle = { background: T.bg, border: `1px solid ${T.border2}`, borderRadius: 8, color: '#fff', padding: '9px 13px', fontSize: 14, outline: 'none' };
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ color: '#666', fontSize: 14 }}>Serviços cadastrados no bot</div>
-        <button onClick={() => setAdding(!adding)} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>+ Novo Serviço</button>
+        <div style={{ color: T.muted, fontSize: 14 }}>Serviços cadastrados no bot</div>
+        <button onClick={() => setAdding(!adding)} style={{ background: T.yellow, color: '#000', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>+ Novo Serviço</button>
       </div>
       {adding && (
-        <div style={{ background: '#131320', border: '1px solid #0ea5e922', borderRadius: 16, padding: 20, marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ background: T.card, border: `1px solid ${T.yellow}33`, borderRadius: 16, padding: 20, marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <input placeholder="Nome do serviço" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ ...inputStyle, flex: 2, minWidth: 160 }} />
           <input placeholder="Preço (ex: 35)" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} style={{ ...inputStyle, width: 120 }} />
           <input placeholder="Duração (min)" type="number" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} style={{ ...inputStyle, width: 130 }} />
           <input placeholder="Descrição (opcional)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, flex: 3, minWidth: 180 }} />
-          <button onClick={handleAdd} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700 }}>Salvar</button>
+          <button onClick={handleAdd} style={{ background: T.yellow, color: '#000', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700 }}>Salvar</button>
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {services.map(s => (
-          <div key={s.id} style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={s.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ color: '#fff', fontWeight: 600 }}>{s.name}</div>
-              {s.description && <div style={{ color: '#555', fontSize: 13, marginTop: 2 }}>{s.description}</div>}
+              <div style={{ color: T.text, fontWeight: 600 }}>{s.name}</div>
+              {s.description && <div style={{ color: T.muted, fontSize: 13, marginTop: 2 }}>{s.description}</div>}
             </div>
-            <div style={{ color: '#0ea5e9', fontWeight: 700, fontSize: 16 }}>R$ {s.price.toFixed(2)}</div>
-            {s.duration && <div style={{ color: '#666', fontSize: 13 }}>{s.duration} min</div>}
-            <button onClick={() => handleDelete(s.id)} style={{ background: '#f8717115', color: '#f87171', border: '1px solid #f8717133', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Remover</button>
+            <div style={{ color: T.yellow, fontWeight: 700, fontSize: 16 }}>R$ {s.price.toFixed(2)}</div>
+            {s.duration && <div style={{ color: T.muted, fontSize: 13 }}>{s.duration} min</div>}
+            <button onClick={() => handleDelete(s.id)} style={{ background: '#f8717118', color: '#f87171', border: '1px solid #f8717133', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Remover</button>
           </div>
         ))}
       </div>
@@ -354,26 +368,26 @@ function Conversations() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 124px)', borderRadius: 16, overflow: 'hidden', border: '1px solid #ffffff0d' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 124px)', borderRadius: 16, overflow: 'hidden', border: `1px solid ${T.border}` }}>
 
       {/* Painel esquerdo — lista de contatos */}
-      <div style={{ width: 300, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid #ffffff0d' }}>
+      <div style={{ width: 300, background: T.sidebar, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ padding: '14px 14px 10px', borderBottom: `1px solid ${T.border}` }}>
           <input
             placeholder="Buscar contato..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', background: '#131320', border: '1px solid #ffffff10', borderRadius: 10, color: '#fff', padding: '8px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: T.card, border: `1px solid ${T.border2}`, borderRadius: 10, color: '#fff', padding: '8px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading ? <div style={{ padding: 20, color: '#555', textAlign: 'center' }}>Carregando...</div>
-          : filteredLeads.length === 0 ? <div style={{ padding: 20, color: '#555', textAlign: 'center' }}>Nenhum contato</div>
+          {loading ? <div style={{ padding: 20, color: T.muted, textAlign: 'center' }}>Carregando...</div>
+          : filteredLeads.length === 0 ? <div style={{ padding: 20, color: T.muted, textAlign: 'center' }}>Nenhum contato</div>
           : filteredLeads.map(lead => {
             const isActive = selectedLead?.id === lead.id;
             return (
               <div key={lead.id} onClick={() => loadMessages(lead)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer', background: isActive ? '#0ea5e912' : 'transparent', borderLeft: `3px solid ${isActive ? '#0ea5e9' : 'transparent'}`, borderBottom: '1px solid #ffffff05', transition: 'background 0.1s' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer', background: isActive ? T.yellowDim : 'transparent', borderLeft: `3px solid ${isActive ? T.yellow : 'transparent'}`, borderBottom: `1px solid ${T.border}`, transition: 'background 0.1s' }}>
                 <Avatar name={lead.name} phone={lead.phone} size={44} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -398,22 +412,22 @@ function Conversations() {
       </div>
 
       {/* Painel direito — chat */}
-      <div style={{ flex: 1, background: '#0a0a1a', display: 'flex', flexDirection: 'column', backgroundImage: 'radial-gradient(#ffffff03 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+      <div style={{ flex: 1, background: T.bg, display: 'flex', flexDirection: 'column', backgroundImage: `radial-gradient(${T.border} 1px, transparent 1px)`, backgroundSize: '24px 24px' }}>
         {!selectedLead ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#333', gap: 16 }}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: T.muted2, gap: 16 }}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={T.muted2} strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span style={{ fontSize: 15 }}>Selecione um contato para conversar</span>
           </div>
         ) : (
           <>
             {/* Header do chat */}
-            <div style={{ padding: '12px 20px', background: '#0f0f23', borderBottom: '1px solid #ffffff0d', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ padding: '12px 20px', background: T.sidebar, borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 14 }}>
               <Avatar name={selectedLead.name} phone={selectedLead.phone} size={42} />
               <div style={{ flex: 1 }}>
-                <div style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>{selectedLead.name || 'Sem nome'}</div>
-                <div style={{ color: '#555', fontSize: 12 }}>{selectedLead.phone}</div>
+                <div style={{ color: T.text, fontWeight: 600, fontSize: 15 }}>{selectedLead.name || 'Sem nome'}</div>
+                <div style={{ color: T.muted, fontSize: 12 }}>{selectedLead.phone}</div>
               </div>
-              <Badge text={selectedLead.stage || 'inicio'} color="#0ea5e9" />
+              <Badge text={selectedLead.stage || 'inicio'} color={T.yellow} />
               {selectedLead.source && (
                 <span style={{ fontSize: 11, color: SOURCE_COLOR[selectedLead.source] || '#888', background: (SOURCE_COLOR[selectedLead.source] || '#888') + '18', padding: '3px 10px', borderRadius: 8, fontWeight: 600, border: `1px solid ${(SOURCE_COLOR[selectedLead.source] || '#888')}33` }}>
                   {SOURCE_LABEL[selectedLead.source] || selectedLead.source}
@@ -424,13 +438,13 @@ function Conversations() {
             {/* Área de mensagens */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {messages.length === 0 ? (
-                <div style={{ color: '#333', textAlign: 'center', marginTop: 60, fontSize: 14 }}>Nenhuma mensagem ainda</div>
+                <div style={{ color: T.muted2, textAlign: 'center', marginTop: 60, fontSize: 14 }}>Nenhuma mensagem ainda</div>
               ) : grouped.map(item => {
                 if (item.type === 'sep') return (
                   <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0 8px' }}>
-                    <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
-                    <span style={{ color: '#444', fontSize: 11, background: '#131320', padding: '3px 12px', borderRadius: 20, border: '1px solid #ffffff08' }}>{formatDateSep(item.date)}</span>
-                    <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
+                    <div style={{ flex: 1, height: 1, background: T.border }} />
+                    <span style={{ color: T.muted2, fontSize: 11, background: T.card, padding: '3px 12px', borderRadius: 20, border: `1px solid ${T.border2}` }}>{formatDateSep(item.date)}</span>
+                    <div style={{ flex: 1, height: 1, background: T.border }} />
                   </div>
                 );
                 const isOut = item.direction === 'outgoing';
@@ -442,14 +456,15 @@ function Conversations() {
                       </div>
                     )}
                     <div style={{
-                      background: isOut ? '#005c4b' : '#1e1e3a',
+                      background: isOut ? '#1a1400' : T.card,
+                      border: isOut ? `1px solid ${T.yellow}33` : `1px solid ${T.border2}`,
                       color: '#fff',
                       padding: '8px 12px 6px',
                       borderRadius: isOut ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                       maxWidth: '68%',
                       fontSize: 14,
                       lineHeight: 1.5,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
                       wordBreak: 'break-word',
                     }}>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{item.message}</div>
@@ -470,7 +485,7 @@ function Conversations() {
             </div>
 
             {/* Input de resposta */}
-            <div style={{ padding: '12px 16px', background: '#0f0f23', borderTop: '1px solid #ffffff0d', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ padding: '12px 16px', background: T.sidebar, borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <textarea
                 ref={inputRef}
                 value={reply}
@@ -479,18 +494,18 @@ function Conversations() {
                 placeholder="Digite uma mensagem..."
                 rows={1}
                 style={{
-                  flex: 1, background: '#131320', border: '1px solid #ffffff12', borderRadius: 22, color: '#fff', padding: '10px 16px', fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5, maxHeight: 120, overflowY: 'auto', fontFamily: 'inherit',
+                  flex: 1, background: T.card, border: `1px solid ${T.border2}`, borderRadius: 22, color: '#fff', padding: '10px 16px', fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5, maxHeight: 120, overflowY: 'auto', fontFamily: 'inherit',
                 }}
                 onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
               />
               <button
                 onClick={handleSend}
                 disabled={!reply.trim() || sending}
-                style={{ width: 44, height: 44, borderRadius: '50%', background: reply.trim() && !sending ? '#0ea5e9' : '#1e1e3a', border: 'none', cursor: reply.trim() && !sending ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                style={{ width: 44, height: 44, borderRadius: '50%', background: reply.trim() && !sending ? T.yellow : T.card, border: 'none', cursor: reply.trim() && !sending ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                 {sending ? (
                   <div style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                 ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={reply.trim() && !sending ? '#000' : T.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"/>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
@@ -522,31 +537,31 @@ export default function App() {
   ];
   const tabTitles = { overview: 'Visão Geral', leads: 'Leads', appointments: 'Agendamentos', services: 'Serviços', conversations: 'Conversas' };
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div style={{ width: 240, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 20 }}>
-        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #ffffff0d' }}>
-          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 160 }} />
+    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg, color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ width: 240, background: T.sidebar, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 20 }}>
+        <div style={{ padding: '20px 16px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/logojohnbarber.png" alt="John Barber" style={{ width: '100%', maxWidth: 190, height: 'auto', display: 'block' }} />
         </div>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 8, height: 8, background: '#34d399', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 6px #34d399' }} />
+            <span style={{ width: 8, height: 8, background: '#34d399', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px #34d399' }} />
             <span style={{ color: '#34d399', fontSize: 13, fontWeight: 600 }}>Bot Ativo</span>
           </div>
-          <div style={{ color: '#444', fontSize: 11, marginTop: 4 }}>{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div style={{ color: T.muted2, fontSize: 11, marginTop: 4 }}>{time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         <nav style={{ flex: 1, padding: '16px 12px' }}>
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: tab === t.id ? '#0ea5e915' : 'none', color: tab === t.id ? '#0ea5e9' : '#666', border: 'none', borderLeft: tab === t.id ? '3px solid #0ea5e9' : '3px solid transparent', borderRadius: '0 8px 8px 0', padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: tab === t.id ? 600 : 400, transition: 'all 0.15s', textAlign: 'left', marginBottom: 4 }}>
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: tab === t.id ? T.yellowDim : 'none', color: tab === t.id ? T.yellow : T.muted, border: 'none', borderLeft: tab === t.id ? `3px solid ${T.yellow}` : '3px solid transparent', borderRadius: '0 8px 8px 0', padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: tab === t.id ? 600 : 400, transition: 'all 0.15s', textAlign: 'left', marginBottom: 4 }}>
               {t.icon}{t.label}
             </button>
           ))}
         </nav>
-        <div style={{ padding: '16px 20px', borderTop: '1px solid #ffffff0d', color: '#333', fontSize: 11 }}>BarberBot v1.0 · Projetov1</div>
+        <div style={{ padding: '16px 20px', borderTop: `1px solid ${T.border}`, color: T.muted2, fontSize: 11 }}>BarberBot v1.0 · Projetov1</div>
       </div>
       <div style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ background: '#0f0f23', borderBottom: '1px solid #ffffff0d', padding: '0 32px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>{tabTitles[tab]}</div>
-          <div style={{ color: '#444', fontSize: 13 }}>John Barber Market Place</div>
+        <div style={{ background: T.sidebar, borderBottom: `1px solid ${T.border}`, padding: '0 32px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div style={{ color: T.text, fontWeight: 600, fontSize: 16 }}>{tabTitles[tab]}</div>
+          <div style={{ color: T.muted2, fontSize: 13 }}>John Barber Market Place</div>
         </div>
         <div style={{ padding: '32px', flex: 1 }}>
           {tab === 'overview' && <Overview stats={stats} />}
