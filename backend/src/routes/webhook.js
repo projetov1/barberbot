@@ -7,27 +7,41 @@ router.post('/zapi', async (req, res) => {
   try {
     const body = req.body;
 
-    // Z-API envia vários tipos de eventos — só processa mensagens recebidas
-    if (!body || body.isFromMe) {
+    // Log completo para debug — ver no Railway
+    console.log('[WEBHOOK] Payload recebido:', JSON.stringify(body, null, 2));
+
+    if (!body) {
+      console.log('[WEBHOOK] Body vazio — ignorado');
       return res.sendStatus(200);
     }
 
-    const phone = body.phone?.replace(/\D/g, ''); // só números
-    const messageText = body.text?.message || body.text || '';
-
-    if (!phone || !messageText) {
+    if (body.isFromMe) {
+      console.log('[WEBHOOK] isFromMe=true — ignorado');
       return res.sendStatus(200);
     }
 
-    // Processa de forma assíncrona para não travar o webhook
+    const phone = body.phone?.replace(/\D/g, '');
+    const messageText = body.text?.message || body.text?.body || body.text || body.message?.text || '';
+
+    console.log(`[WEBHOOK] phone=${phone} | text="${messageText}" | type=${body.type}`);
+
+    if (!phone) {
+      console.log('[WEBHOOK] Sem phone — ignorado');
+      return res.sendStatus(200);
+    }
+
+    if (!messageText) {
+      console.log('[WEBHOOK] Sem texto (pode ser áudio/imagem) — ignorado');
+      return res.sendStatus(200);
+    }
+
     processMessage(phone, messageText).catch((err) => {
-      console.error(`Erro ao processar mensagem de ${phone}:`, err);
+      console.error(`[WEBHOOK] Erro ao processar mensagem de ${phone}:`, err);
     });
 
-    // Z-API espera 200 rápido
     res.sendStatus(200);
   } catch (error) {
-    console.error('Erro no webhook:', error);
+    console.error('[WEBHOOK] Erro geral:', error);
     res.sendStatus(500);
   }
 });
