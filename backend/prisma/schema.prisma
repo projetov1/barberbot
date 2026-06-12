@@ -15,7 +15,8 @@ model Lead {
   temperature   String         @default("frio")
   stage         String         @default("inicio")
   reviewSent    Boolean        @default(false)
-  source        String?        // ex: trafego_pago, organico, indicacao
+  source        String?
+  photo         String?        // URL da foto de perfil do WhatsApp
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   conversations Conversation[]

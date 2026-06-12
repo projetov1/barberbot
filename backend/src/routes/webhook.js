@@ -22,8 +22,10 @@ router.post('/zapi', async (req, res) => {
 
     const phone = body.phone?.replace(/\D/g, '');
     const messageText = body.text?.message || body.text?.body || body.text || body.message?.text || '';
+    const senderName = body.senderName || body.chatName || null;
+    const senderPhoto = body.photo || body.senderPhoto || null;
 
-    console.log(`[WEBHOOK] phone=${phone} | text="${messageText}" | type=${body.type}`);
+    console.log(`[WEBHOOK] phone=${phone} | text="${messageText}" | name=${senderName} | type=${body.type}`);
 
     if (!phone) {
       console.log('[WEBHOOK] Sem phone — ignorado');
@@ -31,12 +33,12 @@ router.post('/zapi', async (req, res) => {
     }
 
     if (!messageText) {
-      console.log('[WEBHOOK] Sem texto (pode ser áudio/imagem) — ignorado');
+      console.log('[WEBHOOK] Sem texto (áudio/imagem/outro) — ignorado');
       return res.sendStatus(200);
     }
 
-    processMessage(phone, messageText).catch((err) => {
-      console.error(`[WEBHOOK] Erro ao processar mensagem de ${phone}:`, err);
+    processMessage(phone, messageText, { senderName, senderPhoto }).catch((err) => {
+      console.error(`[WEBHOOK] Erro ao processar mensagem de ${phone}:`, err.message, err.stack);
     });
 
     res.sendStatus(200);

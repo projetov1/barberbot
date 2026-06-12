@@ -62,16 +62,32 @@ async function saveMessage(leadId, direction, message) {
   });
 }
 
-async function processMessage(phone, messageText) {
+async function processMessage(phone, messageText, meta = {}) {
+  console.log(`[BOT] Processando: phone=${phone} step=?`);
   const text = (messageText || '').trim().toLowerCase();
   const session = await getOrCreateSession(phone);
   const isNewLead = !session || session.step === 'inicio';
   const lead = await getOrCreateLead(phone);
 
+  console.log(`[BOT] Lead id=${lead.id} step=${session.step} name=${lead.name}`);
+
+  // Atualiza nome e foto vindos do WhatsApp se ainda não tiver
+  const metaUpdate = {};
+  if (!lead.name && meta.senderName && meta.senderName !== lead.phone) {
+    metaUpdate.name = meta.senderName;
+  }
+  if (meta.senderPhoto) metaUpdate.photo = meta.senderPhoto;
+  if (Object.keys(metaUpdate).length > 0) {
+    await prisma.lead.update({ where: { phone }, data: metaUpdate });
+    Object.assign(lead, metaUpdate);
+    console.log(`[BOT] Lead atualizado com metadados:`, metaUpdate);
+  }
+
   // Detecta fonte do lead na primeira mensagem
   if (isNewLead && !lead.source) {
     const source = detectSource(messageText);
     await prisma.lead.update({ where: { phone }, data: { source } });
+    console.log(`[BOT] Source detectado: ${source}`);
   }
 
   await saveMessage(lead.id, 'incoming', messageText);
