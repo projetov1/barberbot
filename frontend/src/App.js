@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getDashboardStats, getLeads, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead } from './services/api';
+import { getDashboardStats, getLeads, getLead, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead } from './services/api';
 
 // Tema: preto / branco / amarelo
 const T = {
@@ -244,14 +244,32 @@ function Services() {
   );
 }
 
-const AVATAR_COLORS = ['#0ea5e9','#8b5cf6','#06b6d4','#f59e0b','#ec4899','#34d399','#f87171'];
+const AVATAR_GRADIENTS = [
+  ['#f5c518','#e67e00'],
+  ['#a78bfa','#7c3aed'],
+  ['#34d399','#059669'],
+  ['#f87171','#dc2626'],
+  ['#60a5fa','#2563eb'],
+  ['#fb923c','#ea580c'],
+  ['#e879f9','#a21caf'],
+];
 
 function Avatar({ name, phone, size = 40 }) {
   const str = name || phone || '?';
-  const color = AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+  const idx = (str.charCodeAt(0) || 0) % AVATAR_GRADIENTS.length;
+  const [c1, c2] = AVATAR_GRADIENTS[idx];
+  const letter = str[0].toUpperCase();
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: color + '33', border: `2px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, fontSize: size * 0.38, fontWeight: 700, flexShrink: 0 }}>
-      {str[0].toUpperCase()}
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: `linear-gradient(135deg, ${c1}, ${c2})`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontSize: size * 0.4, fontWeight: 800,
+      boxShadow: `0 2px 8px ${c2}55`,
+      letterSpacing: '-0.5px',
+      userSelect: 'none',
+    }}>
+      {letter}
     </div>
   );
 }
@@ -306,12 +324,10 @@ function Conversations() {
 
   async function fetchMessages(leadId, resetScroll = true) {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/leads/${leadId}`);
-      const data = await res.json();
+      const data = await getLead(leadId);
       setMessages(prev => {
         const newMsgs = data.conversations || [];
         if (resetScroll) { isAtBottomRef.current = true; return newMsgs; }
-        // Só atualiza se chegou mensagem nova
         if (newMsgs.length !== prev.length) { isAtBottomRef.current = true; return newMsgs; }
         return prev;
       });
