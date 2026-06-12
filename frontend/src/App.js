@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getDashboardStats, getLeads, getLead, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead, resetBot } from './services/api';
+import { getDashboardStats, getLeads, getLead, getAppointments, updateAppointmentStatus, createAppointment, deleteAppointment, getServices, createService, deleteService, replyLead, resetBot } from './services/api';
 
 // Tema: preto / branco / amarelo
 const T = {
@@ -161,38 +161,339 @@ function Leads() {
   );
 }
 
+const SERVICES_LIST = ['Corte', 'Barba', 'Sobrancelha', 'Corte + Barba'];
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
 function Appointments() {
+  const [view, setView] = useState('month'); // month | week | day
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
-  const [filter, setFilter] = useState('pendente');
-  const load = useCallback(() => { getAppointments({ status: filter }).then(setAppointments); }, [filter]);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [form, setForm] = useState({ leadId: '', service: 'Corte', date: '', time: '09:00', notes: '' });
+  const [leadSearch, setLeadSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const monthStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+
+  const load = useCallback(() => {
+    getAppointments({ month: monthStr }).then(setAppointments);
+  }, [monthStr]);
+
   useEffect(() => { load(); }, [load]);
-  async function handleStatus(id, status) { await updateAppointmentStatus(id, status); load(); }
+  useEffect(() => { getLeads({ limit: 200 }).then(d => setLeads(d.leads || [])); }, []);
+
+  const apptByDate = {};
+  for (const a of appointments) {
+    if (!apptByDate[a.date]) apptByDate[a.date] = [];
+    apptByDate[a.date].push(a);
+  }
+
+  function dateStr(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  async function handleCreate() {
+    if (!form.leadId || !form.date || !form.time) return;
+    setSaving(true);
+    try {
+      await createAppointment(form);
+      setShowForm(false);
+      setForm({ leadId: '', service: 'Corte', date: '', time: '09:00', notes: '' });
+      setLeadSearch('');
+      load();
+    } catch(e) { alert('Erro ao criar agendamento'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('Remover agendamento?')) return;
+    await deleteAppointment(id);
+    load();
+  }
+
+  async function handleStatus(id, status) {
+    await updateAppointmentStatus(id, status);
+    load();
+  }
+
+  function openNewForm(date) {
+    setForm(f => ({ ...f, date }));
+    setShowForm(true);
+  }
+
+  const filteredLeads = leads.filter(l =>
+    (l.name || '').toLowerCase().includes(leadSearch.toLowerCase()) ||
+    (l.phone || '').includes(leadSearch)
+  );
+
+  // ── Navegação ──
+  function prev() {
+    const d = new Date(currentDate);
+    if (view === 'month') d.setMonth(d.getMonth() - 1);
+    else if (view === 'week') d.setDate(d.getDate() - 7);
+    else d.setDate(d.getDate() - 1);
+    setCurrentDate(d);
+  }
+  function next() {
+    const d = new Date(currentDate);
+    if (view === 'month') d.setMonth(d.getMonth() + 1);
+    else if (view === 'week') d.setDate(d.getDate() + 7);
+    else d.setDate(d.getDate() + 1);
+    setCurrentDate(d);
+  }
+  function goToday() { setCurrentDate(new Date()); }
+
+  const todayStr = dateStr(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+  // ── Render mês ──
+  function renderMonth() {
+    const y = currentDate.getFullYear(), m = currentDate.getMonth();
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return (
+      <div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 2 }}>
+          {WEEKDAYS.map(w => <div key={w} style={{ textAlign: 'center', color: T.muted, fontSize: 12, fontWeight: 600, padding: '8px 0', textTransform: 'uppercase' }}>{w}</div>)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+          {cells.map((d, i) => {
+            if (!d) return <div key={i} style={{ minHeight: 90 }} />;
+            const ds = dateStr(y, m, d);
+            const dayApts = apptByDate[ds] || [];
+            const isToday = ds === todayStr;
+            return (
+              <div key={i} onClick={() => { setSelectedDay(ds); }}
+                style={{ minHeight: 90, background: isToday ? T.yellowDim : T.card, border: `1px solid ${isToday ? T.yellow : T.border}`, borderRadius: 10, padding: '6px 8px', cursor: 'pointer', transition: 'border 0.1s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ color: isToday ? T.yellow : T.text, fontWeight: isToday ? 700 : 400, fontSize: 14 }}>{d}</span>
+                  <span onClick={e => { e.stopPropagation(); openNewForm(ds); }} style={{ color: T.yellow, fontSize: 18, lineHeight: 1, cursor: 'pointer', opacity: 0.7 }} title="Novo agendamento">+</span>
+                </div>
+                {dayApts.slice(0,3).map(a => (
+                  <div key={a.id} style={{ background: STATUS_COLOR[a.status] + '22', border: `1px solid ${STATUS_COLOR[a.status]}44`, borderRadius: 4, padding: '2px 6px', marginBottom: 2, fontSize: 11, color: STATUS_COLOR[a.status], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {a.time} {a.lead?.name || a.lead?.phone}
+                  </div>
+                ))}
+                {dayApts.length > 3 && <div style={{ color: T.muted, fontSize: 10 }}>+{dayApts.length-3} mais</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render semana ──
+  function renderWeek() {
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const days = Array.from({length:7}, (_, i) => {
+      const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); return d;
+    });
+    const hours = Array.from({length:14}, (_, i) => i + 7); // 7h-20h
+
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(7,1fr)', minWidth: 600 }}>
+          <div />
+          {days.map((d, i) => {
+            const ds = dateStr(d.getFullYear(), d.getMonth(), d.getDate());
+            const isToday = ds === todayStr;
+            return (
+              <div key={i} style={{ textAlign: 'center', padding: '8px 4px', borderBottom: `1px solid ${T.border}` }}>
+                <div style={{ color: T.muted, fontSize: 11 }}>{WEEKDAYS[d.getDay()]}</div>
+                <div style={{ color: isToday ? T.yellow : T.text, fontWeight: isToday ? 700 : 400, fontSize: 18 }}>{d.getDate()}</div>
+              </div>
+            );
+          })}
+          {hours.map(h => (
+            <React.Fragment key={h}>
+              <div style={{ color: T.muted2, fontSize: 11, textAlign: 'right', paddingRight: 8, paddingTop: 4 }}>{String(h).padStart(2,'0')}h</div>
+              {days.map((d, di) => {
+                const ds = dateStr(d.getFullYear(), d.getMonth(), d.getDate());
+                const slotApts = (apptByDate[ds] || []).filter(a => a.time && parseInt(a.time) === h);
+                return (
+                  <div key={di} onClick={() => openNewForm(ds)} style={{ borderBottom: `1px solid ${T.border}`, borderLeft: `1px solid ${T.border}`, minHeight: 48, padding: 2, cursor: 'pointer', position: 'relative' }}>
+                    {slotApts.map(a => (
+                      <div key={a.id} onClick={e => e.stopPropagation()} style={{ background: STATUS_COLOR[a.status] + '33', border: `1px solid ${STATUS_COLOR[a.status]}66`, borderRadius: 4, padding: '2px 5px', fontSize: 11, color: STATUS_COLOR[a.status], marginBottom: 2 }}>
+                        {a.time} · {a.lead?.name || a.lead?.phone} · {a.service}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render dia ──
+  function renderDay() {
+    const ds = dateStr(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const dayApts = (apptByDate[ds] || []).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    const hours = Array.from({length:14}, (_, i) => i + 7);
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '50px 1fr', gap: 0 }}>
+        {hours.map(h => {
+          const slotApts = dayApts.filter(a => a.time && parseInt(a.time) === h);
+          return (
+            <React.Fragment key={h}>
+              <div style={{ color: T.muted2, fontSize: 11, textAlign: 'right', paddingRight: 10, paddingTop: 6 }}>{String(h).padStart(2,'0')}h</div>
+              <div onClick={() => openNewForm(ds)} style={{ borderBottom: `1px solid ${T.border}`, borderLeft: `2px solid ${T.border2}`, minHeight: 56, padding: 4, cursor: 'pointer' }}>
+                {slotApts.map(a => (
+                  <div key={a.id} onClick={e => e.stopPropagation()} style={{ background: STATUS_COLOR[a.status] + '22', border: `1px solid ${STATUS_COLOR[a.status]}55`, borderRadius: 8, padding: '6px 12px', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: T.text, fontWeight: 600, fontSize: 14 }}>{a.lead?.name || a.lead?.phone}</div>
+                      <div style={{ color: T.muted, fontSize: 12 }}>{a.service} · {a.time}</div>
+                    </div>
+                    <Badge text={a.status} color={STATUS_COLOR[a.status]} />
+                    {a.status === 'confirmado' && <button onClick={() => handleStatus(a.id,'concluido')} style={{ background:'#34d39918',color:'#34d399',border:'1px solid #34d39933',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12 }}>Concluir</button>}
+                    <button onClick={() => handleDelete(a.id)} style={{ background:'#f8717118',color:'#f87171',border:'1px solid #f8717133',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const titleLabel = view === 'month'
+    ? `${MONTHS_PT[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+    : view === 'week'
+    ? `Semana de ${currentDate.toLocaleDateString('pt-BR')}`
+    : currentDate.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
+
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {['pendente', 'confirmado', 'concluido', 'cancelado'].map(s => (
-          <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? STATUS_COLOR[s] : T.card, color: filter === s ? '#000' : T.muted, border: `1px solid ${filter === s ? STATUS_COLOR[s] : T.border}`, borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{s}</button>
-        ))}
+      {/* Toolbar */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+        <button onClick={goToday} style={{ background:T.yellow,color:'#000',border:'none',borderRadius:8,padding:'7px 16px',cursor:'pointer',fontWeight:700,fontSize:13 }}>Hoje</button>
+        <button onClick={prev} style={{ background:T.card,color:T.text,border:`1px solid ${T.border}`,borderRadius:8,padding:'7px 12px',cursor:'pointer',fontSize:16 }}>‹</button>
+        <button onClick={next} style={{ background:T.card,color:T.text,border:`1px solid ${T.border}`,borderRadius:8,padding:'7px 12px',cursor:'pointer',fontSize:16 }}>›</button>
+        <span style={{ color:T.text,fontWeight:600,fontSize:15,flex:1,textTransform:'capitalize' }}>{titleLabel}</span>
+        <div style={{ display:'flex',gap:4 }}>
+          {['month','week','day'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ background:view===v?T.yellow:T.card,color:view===v?'#000':T.muted,border:`1px solid ${view===v?T.yellow:T.border}`,borderRadius:8,padding:'7px 14px',cursor:'pointer',fontSize:13,fontWeight:600 }}>
+              {v==='month'?'Mês':v==='week'?'Semana':'Dia'}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => { setForm(f=>({...f,date:todayStr})); setShowForm(true); }} style={{ background:T.yellow,color:'#000',border:'none',borderRadius:8,padding:'7px 18px',cursor:'pointer',fontWeight:700,fontSize:13 }}>+ Novo</button>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {appointments.length === 0 ? <div style={{ color: T.muted, textAlign: 'center', padding: 40 }}>Nenhum agendamento</div>
-        : appointments.map(a => (
-          <div key={a.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ color: T.text, fontWeight: 600, marginBottom: 4 }}>{a.lead?.name || a.lead?.phone}</div>
-              <div style={{ color: T.muted, fontSize: 13 }}>{a.service} · {a.date} · {a.time}</div>
+
+      {/* Calendário */}
+      <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:16,marginBottom:selectedDay?0:0 }}>
+        {view==='month' && renderMonth()}
+        {view==='week' && renderWeek()}
+        {view==='day' && renderDay()}
+      </div>
+
+      {/* Painel do dia selecionado (clique no mês) */}
+      {selectedDay && view==='month' && (
+        <div style={{ background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:20,marginTop:12 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
+            <span style={{ color:T.text,fontWeight:600,fontSize:15 }}>
+              {new Date(selectedDay+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}
+            </span>
+            <div style={{ display:'flex',gap:8 }}>
+              <button onClick={() => openNewForm(selectedDay)} style={{ background:T.yellow,color:'#000',border:'none',borderRadius:8,padding:'6px 14px',cursor:'pointer',fontWeight:700,fontSize:13 }}>+ Novo</button>
+              <button onClick={() => setSelectedDay(null)} style={{ background:T.card,color:T.muted,border:`1px solid ${T.border}`,borderRadius:8,padding:'6px 12px',cursor:'pointer' }}>✕</button>
             </div>
-            <Badge text={a.status} color={STATUS_COLOR[a.status]} />
-            {a.status === 'pendente' && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleStatus(a.id, 'confirmado')} style={{ background: '#34d39918', color: '#34d399', border: '1px solid #34d39933', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Confirmar</button>
-                <button onClick={() => handleStatus(a.id, 'cancelado')} style={{ background: '#f8717118', color: '#f87171', border: '1px solid #f8717133', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
-              </div>
-            )}
-            {a.status === 'confirmado' && <button onClick={() => handleStatus(a.id, 'concluido')} style={{ background: '#a78bfa18', color: '#a78bfa', border: '1px solid #a78bfa33', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>Concluir</button>}
           </div>
-        ))}
-      </div>
+          {(apptByDate[selectedDay]||[]).length === 0
+            ? <div style={{ color:T.muted,textAlign:'center',padding:'24px 0' }}>Nenhum agendamento neste dia</div>
+            : (apptByDate[selectedDay]||[]).sort((a,b)=>(a.time||'').localeCompare(b.time||'')).map(a => (
+              <div key={a.id} style={{ display:'flex',alignItems:'center',gap:14,padding:'10px 0',borderBottom:`1px solid ${T.border}` }}>
+                <div style={{ color:T.yellow,fontWeight:700,fontSize:14,minWidth:40 }}>{a.time}</div>
+                <Avatar name={a.lead?.name} phone={a.lead?.phone} size={36} />
+                <div style={{ flex:1 }}>
+                  <div style={{ color:T.text,fontWeight:600 }}>{a.lead?.name||a.lead?.phone}</div>
+                  <div style={{ color:T.muted,fontSize:13 }}>{a.service}</div>
+                </div>
+                <Badge text={a.status} color={STATUS_COLOR[a.status]} />
+                {a.status==='confirmado' && <button onClick={()=>handleStatus(a.id,'concluido')} style={{background:'#34d39918',color:'#34d399',border:'1px solid #34d39933',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12}}>Concluir</button>}
+                {a.status==='confirmado' && <button onClick={()=>handleStatus(a.id,'cancelado')} style={{background:'#f8717118',color:'#f87171',border:'1px solid #f8717133',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12}}>Cancelar</button>}
+                <button onClick={()=>handleDelete(a.id)} style={{background:'#f8717118',color:'#f87171',border:'1px solid #f8717133',borderRadius:6,padding:'4px 10px',cursor:'pointer',fontSize:12}}>✕</button>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {/* Modal novo agendamento */}
+      {showForm && (
+        <div style={{ position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.75)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center' }}>
+          <div style={{ background:T.card,border:`1px solid ${T.border2}`,borderRadius:20,padding:32,width:480,maxWidth:'95vw' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24 }}>
+              <span style={{ color:T.text,fontWeight:700,fontSize:18 }}>Novo Agendamento</span>
+              <button onClick={()=>setShowForm(false)} style={{ background:'none',border:'none',color:T.muted,cursor:'pointer',fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
+              <div>
+                <label style={{ color:T.muted,fontSize:12,marginBottom:6,display:'block' }}>CLIENTE</label>
+                <input placeholder="Buscar por nome ou telefone..." value={leadSearch} onChange={e=>setLeadSearch(e.target.value)}
+                  style={{ width:'100%',background:T.bg,border:`1px solid ${T.border2}`,borderRadius:10,color:'#fff',padding:'10px 12px',fontSize:14,outline:'none',boxSizing:'border-box' }} />
+                {leadSearch && (
+                  <div style={{ background:T.sidebar,border:`1px solid ${T.border2}`,borderRadius:10,marginTop:4,maxHeight:160,overflowY:'auto' }}>
+                    {filteredLeads.slice(0,8).map(l => (
+                      <div key={l.id} onClick={()=>{ setForm(f=>({...f,leadId:l.id})); setLeadSearch(l.name||l.phone); }}
+                        style={{ padding:'10px 14px',cursor:'pointer',borderBottom:`1px solid ${T.border}`,display:'flex',gap:10,alignItems:'center' }}>
+                        <Avatar name={l.name} phone={l.phone} size={32} />
+                        <div>
+                          <div style={{ color:T.text,fontSize:14 }}>{l.name||'Sem nome'}</div>
+                          <div style={{ color:T.muted,fontSize:12 }}>{l.phone}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredLeads.length === 0 && <div style={{ padding:'12px 14px',color:T.muted,fontSize:13 }}>Nenhum lead encontrado</div>}
+                  </div>
+                )}
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                <div>
+                  <label style={{ color:T.muted,fontSize:12,marginBottom:6,display:'block' }}>SERVIÇO</label>
+                  <select value={form.service} onChange={e=>setForm(f=>({...f,service:e.target.value}))}
+                    style={{ width:'100%',background:T.bg,border:`1px solid ${T.border2}`,borderRadius:10,color:'#fff',padding:'10px 12px',fontSize:14,outline:'none' }}>
+                    {SERVICES_LIST.map(s=><option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ color:T.muted,fontSize:12,marginBottom:6,display:'block' }}>DATA</label>
+                  <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}
+                    style={{ width:'100%',background:T.bg,border:`1px solid ${T.border2}`,borderRadius:10,color:'#fff',padding:'10px 12px',fontSize:14,outline:'none',colorScheme:'dark' }} />
+                </div>
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                <div>
+                  <label style={{ color:T.muted,fontSize:12,marginBottom:6,display:'block' }}>HORÁRIO</label>
+                  <input type="time" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}
+                    style={{ width:'100%',background:T.bg,border:`1px solid ${T.border2}`,borderRadius:10,color:'#fff',padding:'10px 12px',fontSize:14,outline:'none',colorScheme:'dark' }} />
+                </div>
+                <div>
+                  <label style={{ color:T.muted,fontSize:12,marginBottom:6,display:'block' }}>OBSERVAÇÕES</label>
+                  <input placeholder="Opcional..." value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
+                    style={{ width:'100%',background:T.bg,border:`1px solid ${T.border2}`,borderRadius:10,color:'#fff',padding:'10px 12px',fontSize:14,outline:'none' }} />
+                </div>
+              </div>
+              <button onClick={handleCreate} disabled={!form.leadId||!form.date||saving}
+                style={{ background:form.leadId&&form.date?T.yellow:'#333',color:form.leadId&&form.date?'#000':T.muted,border:'none',borderRadius:10,padding:'12px',cursor:form.leadId&&form.date?'pointer':'default',fontWeight:700,fontSize:15,marginTop:4,transition:'background 0.15s' }}>
+                {saving?'Salvando...':'Confirmar Agendamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
