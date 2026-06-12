@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getDashboardStats, getLeads, getAppointments, updateAppointmentStatus, getServices, createService, deleteService } from './services/api';
+import { getDashboardStats, getLeads, getAppointments, updateAppointmentStatus, getServices, createService, deleteService, replyLead } from './services/api';
 
 const TEMP_COLOR = { frio: '#60a5fa', morno: '#fbbf24', quente: '#f87171' };
 const TEMP_LABEL = { frio: 'Frio', morno: 'Morno', quente: 'Quente' };
@@ -230,58 +230,232 @@ function Services() {
   );
 }
 
+const AVATAR_COLORS = ['#0ea5e9','#8b5cf6','#06b6d4','#f59e0b','#ec4899','#34d399','#f87171'];
+
+function Avatar({ name, phone, size = 40 }) {
+  const str = name || phone || '?';
+  const color = AVATAR_COLORS[(str.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: color + '33', border: `2px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, fontSize: size * 0.38, fontWeight: 700, flexShrink: 0 }}>
+      {str[0].toUpperCase()}
+    </div>
+  );
+}
+
+function formatMsgTime(dateStr) {
+  return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateSep(dateStr) {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Hoje';
+  if (d.toDateString() === yesterday.toDateString()) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function Conversations() {
   const [leads, setLeads] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    getLeads({}).then(d => { setLeads(d.leads || []); setLoading(false); });
+    getLeads({ limit: 100 }).then(d => { setLeads(d.leads || []); setLoading(false); });
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   async function loadMessages(lead) {
     setSelectedLead(lead);
+    setMessages([]);
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/leads/${lead.id}`);
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/leads/${lead.id}`);
       const data = await res.json();
       setMessages(data.conversations || []);
     } catch (e) { setMessages([]); }
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }
+
+  async function handleSend() {
+    if (!reply.trim() || !selectedLead || sending) return;
+    setSending(true);
+    try {
+      await replyLead(selectedLead.id, reply.trim());
+      const optimistic = { id: Date.now(), direction: 'outgoing', message: reply.trim(), createdAt: new Date().toISOString() };
+      setMessages(prev => [...prev, optimistic]);
+      setReply('');
+    } catch (e) {
+      alert('Erro ao enviar mensagem');
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  }
+
+  const filteredLeads = leads.filter(l =>
+    (l.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.phone || '').includes(search)
+  );
+
+  // Agrupa mensagens por data para separadores
+  const grouped = [];
+  let lastDate = null;
+  for (const m of messages) {
+    const d = new Date(m.createdAt).toDateString();
+    if (d !== lastDate) { grouped.push({ type: 'sep', date: m.createdAt, key: 'sep_' + m.id }); lastDate = d; }
+    grouped.push({ type: 'msg', ...m });
+  }
+
+  const lastMsgByLead = {};
+  for (const lead of leads) {
+    // placeholder — não temos a última msg aqui, mas deixamos vazio
+    lastMsgByLead[lead.id] = null;
   }
 
   return (
-    <div style={{ display: 'flex', gap: 20, height: '75vh' }}>
-      <div style={{ background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, width: 280, overflowY: 'auto' }}>
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid #ffffff0d', color: '#888', fontSize: 13 }}>Selecione um lead</div>
-        {loading ? <div style={{ padding: 20, color: '#555' }}>Carregando...</div>
-        : leads.map(lead => (
-          <div key={lead.id} onClick={() => loadMessages(lead)} style={{ padding: '14px 18px', borderBottom: '1px solid #ffffff05', cursor: 'pointer', background: selectedLead?.id === lead.id ? '#0ea5e915' : 'none', borderLeft: selectedLead?.id === lead.id ? '3px solid #0ea5e9' : '3px solid transparent' }}>
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{lead.name || 'Sem nome'}</div>
-            <div style={{ color: '#555', fontSize: 12 }}>{lead.phone}</div>
-          </div>
-        ))}
+    <div style={{ display: 'flex', height: 'calc(100vh - 124px)', borderRadius: 16, overflow: 'hidden', border: '1px solid #ffffff0d' }}>
+
+      {/* Painel esquerdo — lista de contatos */}
+      <div style={{ width: 300, background: '#0f0f23', borderRight: '1px solid #ffffff0d', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid #ffffff0d' }}>
+          <input
+            placeholder="Buscar contato..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', background: '#131320', border: '1px solid #ffffff10', borderRadius: 10, color: '#fff', padding: '8px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading ? <div style={{ padding: 20, color: '#555', textAlign: 'center' }}>Carregando...</div>
+          : filteredLeads.length === 0 ? <div style={{ padding: 20, color: '#555', textAlign: 'center' }}>Nenhum contato</div>
+          : filteredLeads.map(lead => {
+            const isActive = selectedLead?.id === lead.id;
+            return (
+              <div key={lead.id} onClick={() => loadMessages(lead)}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer', background: isActive ? '#0ea5e912' : 'transparent', borderLeft: `3px solid ${isActive ? '#0ea5e9' : 'transparent'}`, borderBottom: '1px solid #ffffff05', transition: 'background 0.1s' }}>
+                <Avatar name={lead.name} phone={lead.phone} size={44} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#fff', fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name || 'Sem nome'}</span>
+                    <span style={{ color: '#555', fontSize: 11, flexShrink: 0, marginLeft: 6 }}>
+                      {lead.updatedAt ? new Date(lead.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                  </div>
+                  <div style={{ color: '#555', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{lead.phone}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div style={{ flex: 1, background: '#131320', border: '1px solid #ffffff0d', borderRadius: 16, display: 'flex', flexDirection: 'column' }}>
+
+      {/* Painel direito — chat */}
+      <div style={{ flex: 1, background: '#0a0a1a', display: 'flex', flexDirection: 'column', backgroundImage: 'radial-gradient(#ffffff03 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
         {!selectedLead ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444' }}>Selecione um lead para ver as mensagens</div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#333', gap: 16 }}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span style={{ fontSize: 15 }}>Selecione um contato para conversar</span>
+          </div>
         ) : (
           <>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #ffffff0d' }}>
-              <div style={{ color: '#fff', fontWeight: 600 }}>{selectedLead.name || 'Sem nome'}</div>
-              <div style={{ color: '#555', fontSize: 12 }}>{selectedLead.phone}</div>
+            {/* Header do chat */}
+            <div style={{ padding: '12px 20px', background: '#0f0f23', borderBottom: '1px solid #ffffff0d', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Avatar name={selectedLead.name} phone={selectedLead.phone} size={42} />
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>{selectedLead.name || 'Sem nome'}</div>
+                <div style={{ color: '#555', fontSize: 12 }}>{selectedLead.phone}</div>
+              </div>
+              <Badge text={selectedLead.stage || 'inicio'} color="#0ea5e9" />
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {messages.length === 0 ? <div style={{ color: '#444', textAlign: 'center', marginTop: 40 }}>Nenhuma mensagem encontrada</div>
-              : messages.map(m => (
-                <div key={m.id} style={{ display: 'flex', justifyContent: m.direction === 'outgoing' ? 'flex-end' : 'flex-start' }}>
-                  <div style={{ background: m.direction === 'outgoing' ? '#0ea5e9' : '#1e1e3a', color: '#fff', padding: '10px 14px', borderRadius: 12, maxWidth: '70%', fontSize: 14, lineHeight: 1.5 }}>
-                    {m.message}
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
-                      {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+
+            {/* Área de mensagens */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {messages.length === 0 ? (
+                <div style={{ color: '#333', textAlign: 'center', marginTop: 60, fontSize: 14 }}>Nenhuma mensagem ainda</div>
+              ) : grouped.map(item => {
+                if (item.type === 'sep') return (
+                  <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0 8px' }}>
+                    <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
+                    <span style={{ color: '#444', fontSize: 11, background: '#131320', padding: '3px 12px', borderRadius: 20, border: '1px solid #ffffff08' }}>{formatDateSep(item.date)}</span>
+                    <div style={{ flex: 1, height: 1, background: '#ffffff08' }} />
+                  </div>
+                );
+                const isOut = item.direction === 'outgoing';
+                return (
+                  <div key={item.id} style={{ display: 'flex', justifyContent: isOut ? 'flex-end' : 'flex-start', marginBottom: 2 }}>
+                    {!isOut && (
+                      <div style={{ marginRight: 8, alignSelf: 'flex-end', marginBottom: 4 }}>
+                        <Avatar name={selectedLead.name} phone={selectedLead.phone} size={28} />
+                      </div>
+                    )}
+                    <div style={{
+                      background: isOut ? '#005c4b' : '#1e1e3a',
+                      color: '#fff',
+                      padding: '8px 12px 6px',
+                      borderRadius: isOut ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                      maxWidth: '68%',
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                      wordBreak: 'break-word',
+                    }}>
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{item.message}</div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{formatMsgTime(item.createdAt)}</span>
+                        {isOut && (
+                          <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
+                            <path d="M1 5.5L5 9.5L15 1.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M5 5.5L9 9.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input de resposta */}
+            <div style={{ padding: '12px 16px', background: '#0f0f23', borderTop: '1px solid #ffffff0d', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+              <textarea
+                ref={inputRef}
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Digite uma mensagem..."
+                rows={1}
+                style={{
+                  flex: 1, background: '#131320', border: '1px solid #ffffff12', borderRadius: 22, color: '#fff', padding: '10px 16px', fontSize: 14, outline: 'none', resize: 'none', lineHeight: 1.5, maxHeight: 120, overflowY: 'auto', fontFamily: 'inherit',
+                }}
+                onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!reply.trim() || sending}
+                style={{ width: 44, height: 44, borderRadius: '50%', background: reply.trim() && !sending ? '#0ea5e9' : '#1e1e3a', border: 'none', cursor: reply.trim() && !sending ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                {sending ? (
+                  <div style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                )}
+              </button>
             </div>
           </>
         )}

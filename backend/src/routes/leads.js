@@ -71,4 +71,23 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Atendente responde manualmente pelo dashboard
+router.post('/:id/reply', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
+
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } });
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const { sendText } = require('../services/zapiService');
+    await sendText(lead.phone, message.trim());
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao enviar mensagem' });
+  }
+});
+
 module.exports = router;
